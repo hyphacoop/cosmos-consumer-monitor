@@ -1,0 +1,13 @@
+[Unit]
+Description="Cosmos Consumer Monitor"
+
+[Service]
+User={USER}
+Environment="PATH=$PATH:{USER_HOME}/go/bin"
+WorkingDirectory={USER_HOME}/cosmos-consumer-monitor
+ExecStart={USER_HOME}/cosmos-consumer-monitor/.env/bin/python consumer_monitor.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
