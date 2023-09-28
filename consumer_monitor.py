@@ -344,7 +344,7 @@ class ConsumerMonitor():
                 if vsc_data['state'] == 'matured' or vsc_data['state'] == 'alarm':
                     message = f'<test message> VSC ID `{vsc_id}` has reached the **{vsc_data["state"]}** state for chain `{chain}`.'
                     self.alert_matrix(message)
-        print("Update complete")
+        logging.info("Update complete")
 
     def check_hermes_config(self):
         """
