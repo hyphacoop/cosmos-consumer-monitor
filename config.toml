@@ -1,0 +1,23 @@
+# Monitoring frequency
+monitor_period = "86400" # 24 hours
+
+# Dependencies
+gaia_path = "./gaiad"
+hermes_path = "./hermes"
+hermes_config_path = "hermes-config.toml"
+
+# Provider chain
+chain_id="provider"
+api = "http://provider.testnet.com:1317"
+rpc = "http://provider.testnet.com:26657"
+grpc = "http://provider.testnet.com:9090"
+
+# Data record
+record_file = "vsc_packets.json"
+
+# Matrix alerts
+matured_packet_grace_period = "82800" # 23 hours
+homeserver = ""
+room = ""
+token = ""
+
