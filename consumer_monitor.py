@@ -224,16 +224,17 @@ class ConsumerMonitor():
         for block_no, height in enumerate(self.send_blocks):
             self.add_valset_ids(height)
 
-    def search_recv_txs(self, start_height: int=1):
+    def search_recv_txs(self):
         """
         Query the RPC endpoint to Search all transactions that include
         packets with “provider” as the destination port.
         """
         logging.info("Searching transactions that include packets received by the provider port")
-        recv_query=f'query="recv_packet.packet_dst_port=\'provider\' AND tx.height>{start_height}"'
+        recv_query=f'query="recv_packet.packet_dst_port=\'provider\'"'
         matured_vsc_ids = {}
         page = 1
-        
+        channels = [chain_data['channel'] for _, chain_data in self.chain_vsc.items()]
+
         try:
             tx_search = requests.get(self.RPC_NODE + '/tx_search?' + recv_query + f'&per_page=100&page={page}').json()
         except Exception as exc:
@@ -264,9 +265,9 @@ class ConsumerMonitor():
                                     packet_data = json.loads(value)
                                     if packet_data['type'] == 'CONSUMER_PACKET_TYPE_VSCM':
                                         vsc_id = int(packet_data['vscMaturedPacketData']['valset_update_id'])
-                                if key == 'packet_dst_channel':
+                                if key == 'packet_dst_channel' and value in channels:
                                     channel = value
-                            if vsc_id:
+                            if vsc_id and channel:
                                 if vsc_id not in matured_vsc_ids.keys():
                                     matured_vsc_ids[vsc_id] = [channel]
                                 else:
@@ -323,18 +324,23 @@ class ConsumerMonitor():
         self.detect_consumer_chains()
         self.get_unbonding_periods()
         # Adjust starting height if record file is available
+        # Look for the earliest height of a vsc among all chains
+        # that has not reached the 'pass' state
         starting_height = 1
         if os.path.isfile(self.RECORD_FILE):
             with open(self.RECORD_FILE, 'r') as record_file:
                 self.chain_vsc = json.load(record_file)
                 for _, chain_data in self.chain_vsc.items():
                     for vsc_id in chain_data['vsc_ids'].keys():
-                        if int(vsc_id) > starting_height:
+                        if starting_height == 1:
                             starting_height = int(vsc_id)
+                        else:
+                            if int(vsc_id) < starting_height and chain_data['vsc_ids'][vsc_id]['state'] != 'pass':
+                                starting_height = int(vsc_id)
 
         self.search_send_blocks(starting_height)
         self.record_valset_updates()
-        self.search_recv_txs(starting_height)
+        self.search_recv_txs()
         self.evaluate_age()
         with open(self.RECORD_FILE, 'w', encoding='utf-8') as output:
             json.dump(self.chain_vsc, output, indent=4)
@@ -342,7 +348,7 @@ class ConsumerMonitor():
         for chain, chain_data in self.chain_vsc.items():
             for vsc_id, vsc_data in chain_data['vsc_ids'].items():
                 if vsc_data['state'] == 'matured' or vsc_data['state'] == 'alarm':
-                    message = f'<test message> VSC ID `{vsc_id}` has reached the **{vsc_data["state"]}** state for chain `{chain}`.'
+                    message = f'Consumer monitor> VSC ID {vsc_id} has reached the {vsc_data["state"]} state for chain {chain}.'
                     self.alert_matrix(message)
         logging.info("Update complete")
 
